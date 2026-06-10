@@ -6,21 +6,27 @@ services:
     image: python:3.11-slim
     working_dir: /mlflow
     volumes:
-      - mlflow_data:/mlflow
+      - ../mlruns:/mlflow/mlruns
+      - ../mlartifacts:/mlflow/mlartifacts
     ports:
       - "5000:5000"
+    environment:
+      - MLFLOW_HOST=0.0.0.0
     command: >
       bash -c "pip install mlflow==2.22.5 --quiet &&
                mlflow server
                --host 0.0.0.0
                --port 5000
-               --backend-store-uri sqlite:///mlflow.db
-               --default-artifact-root /mlflow/artifacts"
+               --backend-store-uri /mlflow/mlruns
+               --artifacts-destination /mlflow/mlartifacts
+               --serve-artifacts
+               --gunicorn-opts '--bind 0.0.0.0:5000'"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
 
   # FastAPI 추론 API
   api:
@@ -43,5 +49,3 @@ services:
       timeout: 5s
       retries: 5
 
-volumes:
-  mlflow_data:
